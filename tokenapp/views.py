@@ -20,25 +20,35 @@ class TokenAPIView(APIView):
                 serializer.data,
                 status=status.HTTP_200_OK
             )
-        if serializer.error_messages == ErrorMessage.FAILED_AUTHENTICATION.value:
+
+        try:
+            serializer.errors['non_field_errors'][0]
+        except Exception as e:
             return Response(
-                error_response('Not Found', serializer.error_messages),
+                error_response('Bad Request', serializer.errors),
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if serializer.errors['non_field_errors'][0] == ErrorMessage.FAILED_AUTHENTICATION.value:
+            return Response(
+                error_response('Not Found', serializer.errors['non_field_errors'][0]),
                 status=status.HTTP_404_NOT_FOUND
             )
-        if serializer.error_messages == ErrorMessage.INVALID_GRANT_TYPE.value:
+        elif serializer.errors['non_field_errors'][0] == ErrorMessage.INVALID_GRANT_TYPE.value:
             return Response(
-                error_response('Unprocessable Entity', serializer.error_messages),
+                error_response('Unprocessable Entity', serializer.errors['non_field_errors'][0]),
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY
             )
-        if serializer.error_messages == ErrorMessage.INVALID_CLIENT_APP.value:
+        elif serializer.errors['non_field_errors'][0] == ErrorMessage.INVALID_CLIENT_APP.value:
             return Response(
-                error_response('Not Found', serializer.error_messages),
+                error_response('Not Found', serializer.errors['non_field_errors'][0]),
                 status=status.HTTP_404_NOT_FOUND
             )
-        return Response(
-            error_response('Bad Request', serializer.error_messages),
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        else:
+            return Response(
+                error_response('Bad Request', serializer.errors),
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 class ResourceAPIView(APIView):
     def post(self, request):     
