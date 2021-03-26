@@ -2,8 +2,13 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from tokenapp.constants import ErrorMessage
+from tokenapp.models import UserInfo
 from tokenapp.serializers import TokenAPISerializer
 from tokenapp.response import error_response
+from tokenapp.utils import (
+    get_bearer_token,
+    authenticate_token,
+)
 
 class TokenAPIView(APIView):
     def post(self, request):
@@ -35,3 +40,41 @@ class TokenAPIView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+class ResourceAPIView(APIView):
+    def post(self, request):     
+        access_token = get_bearer_token(request)
+        if access_token == None:
+            return Response(
+                error_response('Unauthorized', ErrorMessage.INVALID_TOKEN.value),
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        token = authenticate_token(access_token)
+        if token == None:
+            return Response(
+                error_response('Unauthorized', ErrorMessage.INVALID_TOKEN.value),
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        profile = {}
+        try:
+            user_info = UserInfo.objects.get(user=token.user)
+            profile['full_name'] = user_info.full_name
+            profile['npm'] = user_info.npm
+        except UserInfo.DoesNotExist:
+            profile['full_name'] = None
+            profile['npm'] = None
+
+        response = {
+            'access_token': token.access_token,
+            'client_id': token.application.client_id,
+            'user_id': token.user.username,
+            'full_name': profile['full_name'],
+            'npm': profile['npm'],
+            'expires': token.expired_date,
+            'refresh_token': token.refresh_token,
+        }
+        return Response(
+            response,
+            status=status.HTTP_200_OK
+        )
